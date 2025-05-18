@@ -1,84 +1,69 @@
-# Turborepo starter
 
-This Turborepo starter is maintained by the Turborepo core team.
+🛡️ Nirbhay Astra
+Empowering Silent Voices with AI, Security, and Compassion
+🔧 Tech Stack Overview
+💻 Frontend
+React + Next.js – Fast, modern UI with server-side rendering
 
-## Using this example
+ShadCN UI – Beautiful, accessible, and responsive design system
 
-Run the following command:
+React Three Fiber – 3D avatars and scenes for immersive interactions
 
-```sh
-npx create-turbo@latest
-```
+⚙️ Backend
+Express.js – Lightweight Node.js framework for handling API logic
 
-## What's inside?
+PostgreSQL – Reliable, relational database for secure data storage
 
-This Turborepo includes the following packages/apps:
+Prisma ORM – Structured data management with type safety
 
-### Apps and Packages
+🧠 AI Integration
+Gemini AI (Google) – Natural language understanding and emotional response generation
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+Text-to-Speech – Human-like voice responses for accessibility
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+🛠️ Monorepo Management
+Turborepo – Organized codebase with logical folder separation:
 
-### Utilities
+apps – Application code
 
-This Turborepo has some additional tools already setup for you:
+packages – Shared packages
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+ui – Design components
 
-### Build
+config – Centralized configuration
 
-To build all apps and packages, run the following command:
+🌟 Key Features
+🧠 AI Chatbot + Therapist Assistant
+Chat with an emotionally intelligent AI trained to understand abuse cases
 
-```
-cd my-turborepo
-pnpm build
-```
+Provides empathy, resources, and psychological support
 
-### Develop
+Dual interface: text + voice replies via text-to-speech
 
-To develop all apps and packages, run the following command:
+📹 Video Evidence Upload & Processing
+Victims can upload videos describing incidents
 
-```
-cd my-turborepo
-pnpm dev
-```
+AI-generated summaries, timestamps, and important details
 
-### Remote Caching
+Helps streamline legal review and reduces manual analysis
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+🕵️‍♀️ Steganography-Based Secret Messaging
+Victims can hide messages inside uploaded images
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+Only admins can decode these messages securely
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+Enables discreet help-seeking when direct contact is risky
 
-```
-cd my-turborepo
-npx turbo login
-```
+🧑‍💻 3D Virtual Therapist
+Animated therapist avatar built with React Three Fiber
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Engaging and comforting interface for users in distress
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+Adds a personal, human-like touch to the platform
 
-```
-npx turbo link
-```
+🔐 Security & Privacy Focus
+No real-time tracking or logging of sensitive conversations
 
-## Useful Links
+Admin access required for message decoding and evidence handling
 
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+Modular structure ensures each feature is isolated and secure
