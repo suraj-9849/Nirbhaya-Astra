@@ -29,7 +29,8 @@ import {
   CarFront,
   Bell,
   DollarSign,
-  CreditCard
+  CreditCard,
+  LogOut
 } from 'lucide-react';
 
 // Real Supabase Integration
@@ -226,12 +227,20 @@ interface Rider {
   vehicle_types: string[]; // ['auto', 'bike', 'car']
 }
 
-const SafeRideCompleteApp = () => {
+interface SafeRideCompleteAppProps {
+  userProfile: any;
+  onLogout: () => void;
+}
+
+const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({ 
+  userProfile, 
+  onLogout 
+}) => {
   const [userType, setUserType] = useState<'rider' | 'ridebooker' | null>(null);
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
-  const [userName, setUserName] = useState('');
-  const [userPhone, setUserPhone] = useState('');
-  const [userId, setUserId] = useState<string>('');
+  const [userName, setUserName] = useState(userProfile?.name || '');
+  const [userPhone, setUserPhone] = useState(userProfile?.phone || '');
+  const [userId, setUserId] = useState<string>(userProfile?.id || `user_${Date.now()}`);
   
   // RideBooker states
   const [rideRequest, setRideRequest] = useState<{
@@ -375,6 +384,7 @@ const SafeRideCompleteApp = () => {
             newRequest.pickup_location.lng
           );
           
+          // Check if rider supports this vehicle type
           
           // Check if rider supports this vehicle type
           if (distance <= 10 && riderProfile.vehicle_types?.includes(newRequest.vehicle_type.id)) {
@@ -696,13 +706,38 @@ const SafeRideCompleteApp = () => {
     }
   };
 
-  // Handle route selection and payment
-  const handleRouteSelect = (route: RouteWithSafety) => {
-    setRideRequest(prev => ({ 
-      ...prev, 
-      selectedRoute: route,
-      status: 'payment'
-    }));
+  // Enhanced ride request creation with user profile
+  const handleRouteSelect = async (route: RouteWithSafety) => {
+    setRideRequest(prev => ({ ...prev, selectedRoute: route, status: 'searching' }));
+
+    // Create ride request in Supabase with user profile data
+    const rideRequestData: Omit<RideRequest, 'id' | 'created_at'> = {
+      booker_id: userId,
+      booker_name: userProfile?.name || userName,
+      pickup_location: rideRequest.from!,
+      drop_location: rideRequest.to!,
+      selected_route: route,
+      vehicle_type: rideRequest.selectedVehicle!,
+      fare: route.fare,
+      status: 'pending',
+      payment_status: 'completed',
+      payment_id: `pay_${Date.now()}`
+    };
+
+    try {
+      const { data, error } = await DatabaseService.insertRideRequest(rideRequestData);
+      if (error) {
+        console.error('Error creating ride request:', error);
+        alert('Failed to create ride request. Please try again.');
+        setRideRequest(prev => ({ ...prev, status: 'route-selection' }));
+      } else {
+        console.log('Ride request created successfully:', data);
+      }
+    } catch (error) {
+      console.error('Error creating ride request:', error);
+      alert('Failed to create ride request. Please try again.');
+      setRideRequest(prev => ({ ...prev, status: 'route-selection' }));
+    }
   };
 
   // Handle payment success
@@ -781,6 +816,19 @@ const SafeRideCompleteApp = () => {
     }
   };
 
+  // Initialize rider profile with user data
+  useEffect(() => {
+    if (userProfile) {
+      setRiderProfile(prev => ({
+        ...prev,
+        name: userProfile.name || '',
+        phone: userProfile.phone || '',
+        rating: 4.8
+      }));
+    }
+  }, [userProfile]);
+
+  // Enhanced rider goes online with user profile data
   const handleGoOnline = async () => {
     if (!currentLocation || !riderProfile.name || !riderProfile.vehicle_types?.length) {
       alert('Please complete your profile and select vehicle types');
@@ -788,8 +836,8 @@ const SafeRideCompleteApp = () => {
     }
 
     const riderData: Omit<Rider, 'id'> = {
-      name: riderProfile.name,
-      phone: riderProfile.phone || '+91 98765 43210',
+      name: riderProfile.name || userProfile?.name,
+      phone: riderProfile.phone || userProfile?.phone || '+91 98765 43210',
       car_model: riderProfile.car_model || 'Multi-Vehicle',
       car_number: riderProfile.car_number || 'MH12AB1234',
       rating: riderProfile.rating || 4.8,
@@ -806,7 +854,7 @@ const SafeRideCompleteApp = () => {
         alert('Failed to go online. Please try again.');
       } else {
         console.log('Successfully went online:', data);
-        setUserId(data.id || Date.now().toString());
+        setUserId(data.id || userProfile?.id || Date.now().toString());
         setIsRiderOnline(true);
       }
     } catch (error) {
@@ -940,7 +988,15 @@ const SafeRideCompleteApp = () => {
           <Shield className="h-5 w-5 text-green-600" />
           Book Your Safe Ride
         </CardTitle>
-        <p className="text-sm text-muted-foreground">Hello, {userName}!</p>
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">Hello, {userProfile?.name}!</p>
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="bg-green-100 text-green-800">
+              <UserCheck className="h-3 w-3 mr-1" />
+              Verified Female User
+            </Badge>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2 relative">
@@ -1173,7 +1229,7 @@ const SafeRideCompleteApp = () => {
     </div>
   );
 
-const renderPaymentScreen = () => (
+  const renderPaymentScreen = () => (
     <div className="w-full max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Complete Payment</h2>
@@ -1344,6 +1400,7 @@ const renderPaymentScreen = () => (
     </div>
   );
 
+  // Rider interface
   const renderRiderInterface = () => {
     if (!isRiderOnline) {
       return renderRiderSetup();
@@ -1361,14 +1418,22 @@ const renderPaymentScreen = () => (
           <CarFront className="h-5 w-5 text-blue-600" />
           Driver Profile Setup
         </CardTitle>
-        <p className="text-sm text-muted-foreground">Hello, {userName}!</p>
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">Hello, {userProfile?.name}!</p>
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="bg-green-100 text-green-800">
+              <UserCheck className="h-3 w-3 mr-1" />
+              Verified Female Driver
+            </Badge>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Name</label>
           <Input
             placeholder="Your name"
-            value={riderProfile.name}
+            value={riderProfile.name || userProfile?.name}
             onChange={(e) => setRiderProfile(prev => ({ ...prev, name: e.target.value }))}
           />
         </div>
@@ -1377,7 +1442,7 @@ const renderPaymentScreen = () => (
           <label className="text-sm font-medium">Phone Number</label>
           <Input
             placeholder="Your phone number"
-            value={riderProfile.phone}
+            value={riderProfile.phone || userProfile?.phone}
             onChange={(e) => setRiderProfile(prev => ({ ...prev, phone: e.target.value }))}
           />
         </div>
@@ -1714,7 +1779,9 @@ const renderPaymentScreen = () => (
       )}
     </div>
   );
-const renderRideBookerInterface = () => {
+
+  // RideBooker interface
+  const renderRideBookerInterface = () => {
     switch (rideRequest.status) {
       case 'booking':
         return renderBookingForm();
@@ -1753,28 +1820,55 @@ const renderRideBookerInterface = () => {
               : 'Book rides with verified female drivers on the safest routes'
             }
           </p>
+          
+          {/* User verification status */}
+          <div className="mt-4 flex justify-center">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  Verified as: {userProfile?.name}
+                </span>
+                <Badge variant="outline" className="text-xs">
+                  {userProfile?.validation?.confidence}% Confidence
+                </Badge>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* User type switcher */}
         <div className="flex justify-center mb-6">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setUserType(null);
-              setRideRequest({
-                from: null,
-                to: null,
-                selectedRoute: null,
-                selectedVehicle: null,
-                status: 'booking'
-              });
-              setIsRiderOnline(false);
-              setAcceptedRide(null);
-              setMatchedRider(null);
-            }}
-          >
-            Switch User Type
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setUserType(null);
+                setRideRequest({
+                  from: null,
+                  to: null,
+                  selectedRoute: null,
+                  selectedVehicle: null,
+                  status: 'booking'
+                });
+                setIsRiderOnline(false);
+                setAcceptedRide(null);
+                setMatchedRider(null);
+              }}
+            >
+              Switch User Type
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onLogout}
+              className="text-red-600 hover:text-red-700"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
