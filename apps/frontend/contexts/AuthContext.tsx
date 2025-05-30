@@ -33,25 +33,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check if user is logged in on initial load
   useEffect(() => {
-    const token = Cookies.get("token");
-    if (token) {
-      fetch("/api/auth/me")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.user) {
+    const checkAuth = async () => {
+      const token = Cookies.get("token");
+      
+      if (token) {
+        try {
+          const response = await fetch("/api/auth/me", {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.user) {
             setUser(data.user);
+          } else {
+            // Token is invalid, remove it
+            Cookies.remove("token");
+            setUser(null);
           }
-        })
-        .catch((error) => {
+        } catch (error) {
           console.error("Authentication error:", error);
           Cookies.remove("token");
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
+          setUser(null);
+        }
+      }
+      
       setLoading(false);
-    }
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -71,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.message || "Failed to login");
       }
 
+      // The cookie is now set by the server response
+      // But we also set it client-side to ensure consistency
       Cookies.set("token", data.token, { expires: 7 });
       setUser(data.user);
 
@@ -110,6 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.message || "Failed to register");
       }
 
+      // The cookie is now set by the server response
+      // But we also set it client-side to ensure consistency
       Cookies.set("token", data.token, { expires: 7 });
       setUser(data.user);
 

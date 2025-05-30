@@ -1,5 +1,5 @@
+import { register } from "lib/auth";
 import { NextResponse } from "next/server";
-import { register } from "../../../../../lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -14,13 +14,13 @@ export async function POST(request: Request) {
 
     const result = await register(email, password, name, isGovtOfficial);
 
-    // Set the token as a cookie
     const response = NextResponse.json(result);
     response.cookies.set("token", result.token, {
-      httpOnly: true,
+      httpOnly: false, 
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 1 week
       path: "/",
+      sameSite: 'lax'
     });
 
     return response;
