@@ -42,8 +42,30 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'your-supab
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Enhanced Database operations with rider details
+// Enhanced Database operations with proper user management
 class DatabaseService {
+  // User Management
+  static async createUser(userData: { name: string; phone: string; user_type: 'rider' | 'ridebooker' }) {
+    const { data, error } = await supabase
+      .from('users')
+      .insert(userData)
+      .select()
+      .single();
+    
+    return { data, error };
+  }
+
+  static async getUserById(userId: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    return { data, error };
+  }
+
+  // Ride Request Operations
   static async insertRideRequest(rideRequest: Omit<RideRequest, 'id' | 'created_at'>) {
     const { data, error } = await supabase
       .from('ride_requests')
@@ -65,6 +87,7 @@ class DatabaseService {
     return { data, error };
   }
 
+  // Rider Operations
   static async insertRider(rider: Omit<Rider, 'id'>) {
     const { data, error } = await supabase
       .from('riders')
@@ -103,24 +126,15 @@ class DatabaseService {
   static async getRideRequestsByStatus(status: string) {
     const { data, error } = await supabase
       .from('ride_requests')
-      .select(`
-        *,
-        riders (
-          id,
-          name,
-          phone,
-          car_model,
-          car_number,
-          rating,
-          verification_status
-        )
-      `)
+      .select('*')
       .eq('status', status)
       .order('created_at', { ascending: false });
     
+    console.log('Database query result:', { data, error });
     return { data, error };
   }
 
+  // Payment Operations
   static async insertPayment(paymentData: any) {
     const { data, error } = await supabase
       .from('payments')
@@ -216,6 +230,7 @@ interface RideRequest {
 
 interface Rider {
   id?: string;
+  user_id?: string;
   name: string;
   phone: string;
   car_model: string;
@@ -224,7 +239,7 @@ interface Rider {
   current_location: Location;
   is_online: boolean;
   verification_status: 'verified' | 'pending';
-  vehicle_types: string[]; // ['auto', 'bike', 'car']
+  vehicle_types: string[];
 }
 
 interface SafeRideCompleteAppProps {
@@ -240,7 +255,8 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [userName, setUserName] = useState(userProfile?.name || '');
   const [userPhone, setUserPhone] = useState(userProfile?.phone || '');
-  const [userId, setUserId] = useState<string>(userProfile?.id || `user_${Date.now()}`);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [dbUser, setDbUser] = useState<any>(null);
   
   // RideBooker states
   const [rideRequest, setRideRequest] = useState<{
@@ -296,9 +312,22 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
     document.body.appendChild(script);
     
     return () => {
-      document.body.removeChild(script);
+      try {
+        document.body.removeChild(script);
+      } catch (e) {
+        // Script might already be removed
+      }
     };
   }, []);
+
+  // Initialize user data from userProfile
+  useEffect(() => {
+    if (userProfile?.name) {
+      setUserName(userProfile.name);
+      setUserPhone(userProfile.phone || '');
+      console.log('User profile loaded:', userProfile);
+    }
+  }, [userProfile]);
 
   // Get current location on mount
   useEffect(() => {
@@ -369,14 +398,72 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
     }
   }, [mapRef.current, currentLocation]);
 
+  // Create/get user in database when userType is selected
+  const handleUserTypeSelection = async (selectedType: 'rider' | 'ridebooker') => {
+    if (!userName.trim()) {
+      alert('Please enter your name');
+      return;
+    }
+
+    try {
+      // Create user in database
+      const userData = {
+        name: userName,
+        phone: userPhone,
+        user_type: selectedType
+      };
+
+      const { data: user, error } = await DatabaseService.createUser(userData);
+      
+      if (error) {
+        console.error('Error creating user:', error);
+        alert('Failed to create user. Please try again.');
+        return;
+      }
+
+      console.log('User created successfully:', user);
+      setDbUser(user);
+      setUserId(user.id);
+      setUserType(selectedType);
+
+      // Initialize rider profile if rider type
+      if (selectedType === 'rider') {
+        setRiderProfile(prev => ({
+          ...prev,
+          name: userName,
+          phone: userPhone,
+        }));
+      }
+
+    } catch (error) {
+      console.error('Error in user type selection:', error);
+      alert('An error occurred. Please try again.');
+    }
+  };
+
   // Real-time subscription for ride requests (Rider)
   useEffect(() => {
-    if (userType === 'rider' && isRiderOnline && currentLocation) {
+    if (userType === 'rider' && isRiderOnline && currentLocation && userId) {
+      console.log('Setting up real-time subscription for rider:', userId);
+      console.log('Rider vehicle types:', riderProfile.vehicle_types);
+      
       const unsubscribe = RealTimeManager.subscribeToRideRequests((payload) => {
         console.log('Rider real-time update:', payload);
         
         if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
           const newRequest = payload.new as RideRequest;
+          console.log('New ride request received:', newRequest);
+          
+          // Parse vehicle_type if it's a string
+          let vehicleType = newRequest.vehicle_type;
+          if (typeof vehicleType === 'string') {
+            try {
+              vehicleType = JSON.parse(vehicleType);
+            } catch (e) {
+              console.error('Error parsing vehicle_type:', e);
+            }
+          }
+          
           const distance = calculateDistance(
             currentLocation.lat,
             currentLocation.lng,
@@ -384,11 +471,23 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
             newRequest.pickup_location.lng
           );
           
-          // Check if rider supports this vehicle type
+          console.log('Distance:', distance, 'km');
+          console.log('Vehicle type ID:', vehicleType?.id);
+          console.log('Rider supports:', riderProfile.vehicle_types);
           
-          // Check if rider supports this vehicle type
-          if (distance <= 10 && riderProfile.vehicle_types?.includes(newRequest.vehicle_type.id)) {
-            setNearbyRideRequests(prev => [...prev, newRequest]);
+          // More lenient filtering - show all requests within range regardless of vehicle type for now
+          if (distance <= 50) { // Increased range for testing
+            setNearbyRideRequests(prev => {
+              // Avoid duplicates
+              const exists = prev.find(req => req.id === newRequest.id);
+              if (!exists) {
+                console.log('Adding new ride request to list');
+                return [...prev, { ...newRequest, vehicle_type: vehicleType }];
+              }
+              return prev;
+            });
+          } else {
+            console.log('Request too far away:', distance, 'km');
           }
         } else if (payload.eventType === 'UPDATE') {
           setNearbyRideRequests(prev => 
@@ -402,29 +501,64 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
         }
       });
 
-      // Initial fetch
-      DatabaseService.getRideRequestsByStatus('pending').then(({ data, error }) => {
-        if (data && !error) {
-          const nearby = data.filter((request: RideRequest) => {
-            const distance = calculateDistance(
-              currentLocation.lat,
-              currentLocation.lng,
-              request.pickup_location.lat,
-              request.pickup_location.lng
-            );
-            return distance <= 10 && riderProfile.vehicle_types?.includes(request.vehicle_type.id);
-          });
-          setNearbyRideRequests(nearby);
+      // Initial fetch of pending requests with better error handling
+      const fetchPendingRequests = async () => {
+        try {
+          const { data, error } = await DatabaseService.getRideRequestsByStatus('pending');
+          if (error) {
+            console.error('Error fetching ride requests:', error);
+            return;
+          }
+          
+          if (data && data.length > 0) {
+            console.log('Fetched pending ride requests:', data);
+            const nearby = data.filter((request: RideRequest) => {
+              // Parse vehicle_type if it's a string
+              let vehicleType = request.vehicle_type;
+              if (typeof vehicleType === 'string') {
+                try {
+                  vehicleType = JSON.parse(vehicleType);
+                } catch (e) {
+                  console.error('Error parsing vehicle_type:', e);
+                  return false;
+                }
+              }
+              
+              const distance = calculateDistance(
+                currentLocation.lat,
+                currentLocation.lng,
+                request.pickup_location.lat,
+                request.pickup_location.lng
+              );
+              
+              console.log(`Request ${request.id}: Distance ${distance}km, Vehicle: ${vehicleType?.id}`);
+              
+              // More lenient filtering for testing
+              return distance <= 50; // Increased range and removed vehicle type check temporarily
+            });
+            
+            console.log('Nearby requests after filtering:', nearby);
+            setNearbyRideRequests(nearby);
+          } else {
+            console.log('No pending ride requests found');
+            setNearbyRideRequests([]);
+          }
+        } catch (error) {
+          console.error('Error in fetchPendingRequests:', error);
         }
-      });
+      };
+
+      fetchPendingRequests();
 
       return unsubscribe;
     }
-  }, [userType, isRiderOnline, currentLocation, riderProfile.vehicle_types]);
+  }, [userType, isRiderOnline, currentLocation, riderProfile.vehicle_types, userId]);
 
   // Real-time subscription for ride status (RideBooker)
   useEffect(() => {
-    if (userType === 'ridebooker' && rideRequest.status === 'searching') {
+    if (userType === 'ridebooker' && rideRequest.status === 'searching' && userId) {
+      console.log('Setting up real-time subscription for ridebooker:', userId);
+      
       const unsubscribe = RealTimeManager.subscribeToRideRequests((payload) => {
         console.log('RideBooker received update:', payload);
         
@@ -662,14 +796,6 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
       return;
     }
 
-    // Calculate distance for fare estimation
-    const distance = calculateDistance(
-      rideRequest.from.lat,
-      rideRequest.from.lng,
-      rideRequest.to.lat,
-      rideRequest.to.lng
-    );
-
     setRideRequest(prev => ({ ...prev, status: 'vehicle-selection' }));
   };
 
@@ -706,43 +832,20 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
     }
   };
 
-  // Enhanced ride request creation with user profile
-  const handleRouteSelect = async (route: RouteWithSafety) => {
-    setRideRequest(prev => ({ ...prev, selectedRoute: route, status: 'searching' }));
-
-    // Create ride request in Supabase with user profile data
-    const rideRequestData: Omit<RideRequest, 'id' | 'created_at'> = {
-      booker_id: userId,
-      booker_name: userProfile?.name || userName,
-      pickup_location: rideRequest.from!,
-      drop_location: rideRequest.to!,
-      selected_route: route,
-      vehicle_type: rideRequest.selectedVehicle!,
-      fare: route.fare,
-      status: 'pending',
-      payment_status: 'completed',
-      payment_id: `pay_${Date.now()}`
-    };
-
-    try {
-      const { data, error } = await DatabaseService.insertRideRequest(rideRequestData);
-      if (error) {
-        console.error('Error creating ride request:', error);
-        alert('Failed to create ride request. Please try again.');
-        setRideRequest(prev => ({ ...prev, status: 'route-selection' }));
-      } else {
-        console.log('Ride request created successfully:', data);
-      }
-    } catch (error) {
-      console.error('Error creating ride request:', error);
-      alert('Failed to create ride request. Please try again.');
-      setRideRequest(prev => ({ ...prev, status: 'route-selection' }));
-    }
+  // Handle route selection - now goes to payment
+  const handleRouteSelect = (route: RouteWithSafety) => {
+    setRideRequest(prev => ({ 
+      ...prev, 
+      selectedRoute: route, 
+      status: 'payment' // Changed to go to payment first
+    }));
   };
 
   // Handle payment success
   const handlePaymentSuccess = async (paymentData: any) => {
     try {
+      console.log('Payment successful:', paymentData);
+
       // Save payment to database
       await DatabaseService.insertPayment({
         payment_id: paymentData.payment_id,
@@ -758,7 +861,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
 
       // Create ride request in database
       const rideRequestData: Omit<RideRequest, 'id' | 'created_at'> = {
-        booker_id: userId,
+        booker_id: userId!,
         booker_name: userName,
         pickup_location: rideRequest.from!,
         drop_location: rideRequest.to!,
@@ -770,6 +873,8 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
         payment_id: paymentData.payment_id
       };
 
+      console.log('Creating ride request with data:', rideRequestData);
+
       const { data, error } = await DatabaseService.insertRideRequest(rideRequestData);
       
       if (error) {
@@ -777,6 +882,11 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
         alert('Payment successful but failed to create ride request. Please contact support.');
       } else {
         console.log('Ride request created successfully:', data);
+        
+        // Double-check that the request was created
+        const { data: checkData } = await DatabaseService.getRideRequestsByStatus('pending');
+        console.log('All pending requests after creation:', checkData);
+        
         setRideRequest(prev => ({ ...prev, status: 'searching' }));
       }
     } catch (error) {
@@ -793,7 +903,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
 
   // Rider functions
   const handleAcceptRide = async (request: RideRequest) => {
-    if (!request.id) return;
+    if (!request.id || !userId) return;
 
     try {
       const { data, error } = await DatabaseService.updateRideRequest(request.id, {
@@ -816,28 +926,17 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
     }
   };
 
-  // Initialize rider profile with user data
-  useEffect(() => {
-    if (userProfile) {
-      setRiderProfile(prev => ({
-        ...prev,
-        name: userProfile.name || '',
-        phone: userProfile.phone || '',
-        rating: 4.8
-      }));
-    }
-  }, [userProfile]);
-
-  // Enhanced rider goes online with user profile data
+  // Enhanced rider goes online with user data
   const handleGoOnline = async () => {
-    if (!currentLocation || !riderProfile.name || !riderProfile.vehicle_types?.length) {
+    if (!currentLocation || !riderProfile.name || !riderProfile.vehicle_types?.length || !userId) {
       alert('Please complete your profile and select vehicle types');
       return;
     }
 
     const riderData: Omit<Rider, 'id'> = {
-      name: riderProfile.name || userProfile?.name,
-      phone: riderProfile.phone || userProfile?.phone || '+91 98765 43210',
+      user_id: userId,
+      name: riderProfile.name,
+      phone: riderProfile.phone || userPhone || '+91 98765 43210',
       car_model: riderProfile.car_model || 'Multi-Vehicle',
       car_number: riderProfile.car_number || 'MH12AB1234',
       rating: riderProfile.rating || 4.8,
@@ -854,7 +953,6 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
         alert('Failed to go online. Please try again.');
       } else {
         console.log('Successfully went online:', data);
-        setUserId(data.id || userProfile?.id || Date.now().toString());
         setIsRiderOnline(true);
       }
     } catch (error) {
@@ -950,10 +1048,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
 
           <div className="grid grid-cols-1 gap-4 mt-6">
             <Button
-              onClick={() => {
-                setUserType('ridebooker');
-                setUserId(`booker_${Date.now()}`);
-              }}
+              onClick={() => handleUserTypeSelection('ridebooker')}
               className="h-20 flex flex-col items-center gap-2"
               disabled={!userName.trim()}
             >
@@ -963,10 +1058,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
             </Button>
             
             <Button
-              onClick={() => {
-                setUserType('rider');
-                setUserId(`rider_${Date.now()}`);
-              }}
+              onClick={() => handleUserTypeSelection('rider')}
               variant="outline"
               className="h-20 flex flex-col items-center gap-2"
               disabled={!userName.trim()}
@@ -989,7 +1081,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
           Book Your Safe Ride
         </CardTitle>
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Hello, {userProfile?.name}!</p>
+          <p className="text-sm text-muted-foreground">Hello, {userName}!</p>
           <div className="flex items-center gap-2">
             <Badge variant="default" className="bg-green-100 text-green-800">
               <UserCheck className="h-3 w-3 mr-1" />
@@ -1206,13 +1298,13 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
                     <p className="font-medium">{route.safetyScore}/100</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Vehicle:</span>
-                    <p className="font-medium">{rideRequest.selectedVehicle?.name}</p>
+                    <span className="text-muted-foreground">Fare:</span>
+                    <p className="font-medium">₹{route.fare}</p>
                   </div>
                 </div>
                 
                 <Button className="w-full">
-                  Select Route & Pay ₹{route.fare}
+                  Select Route & Proceed to Payment
                 </Button>
               </CardContent>
             </Card>
@@ -1419,7 +1511,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
           Driver Profile Setup
         </CardTitle>
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">Hello, {userProfile?.name}!</p>
+          <p className="text-sm text-muted-foreground">Hello, {userName}!</p>
           <div className="flex items-center gap-2">
             <Badge variant="default" className="bg-green-100 text-green-800">
               <UserCheck className="h-3 w-3 mr-1" />
@@ -1433,7 +1525,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
           <label className="text-sm font-medium">Name</label>
           <Input
             placeholder="Your name"
-            value={riderProfile.name || userProfile?.name}
+            value={riderProfile.name || userName}
             onChange={(e) => setRiderProfile(prev => ({ ...prev, name: e.target.value }))}
           />
         </div>
@@ -1442,7 +1534,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
           <label className="text-sm font-medium">Phone Number</label>
           <Input
             placeholder="Your phone number"
-            value={riderProfile.phone || userProfile?.phone}
+            value={riderProfile.phone || userPhone}
             onChange={(e) => setRiderProfile(prev => ({ ...prev, phone: e.target.value }))}
           />
         </div>
@@ -1508,6 +1600,27 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
           <Car className="h-4 w-4 mr-2" />
           Go Online & Start Accepting Rides
         </Button>
+
+        {isRiderOnline && (
+          <div className="mt-4 space-y-2">
+            <Button 
+              variant="outline"
+              className="w-full"
+              onClick={async () => {
+                console.log('Testing ride request fetch...');
+                const { data, error } = await DatabaseService.getRideRequestsByStatus('pending');
+                console.log('Test fetch result:', { data, error });
+                alert(`Found ${data?.length || 0} pending ride requests`);
+              }}
+            >
+              🧪 Test Fetch Rides
+            </Button>
+            <div className="text-xs text-center text-muted-foreground">
+              User ID: {userId}<br/>
+              Location: {currentLocation ? 'Available' : 'Not available'}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -1517,6 +1630,30 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Available Ride Requests</h2>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={async () => {
+              console.log('Manual refresh triggered');
+              if (currentLocation) {
+                const { data, error } = await DatabaseService.getRideRequestsByStatus('pending');
+                console.log('Manual fetch result:', { data, error });
+                if (data && !error) {
+                  setNearbyRideRequests(data.filter((request: RideRequest) => {
+                    const distance = calculateDistance(
+                      currentLocation.lat,
+                      currentLocation.lng,
+                      request.pickup_location.lat,
+                      request.pickup_location.lng
+                    );
+                    return distance <= 50;
+                  }));
+                }
+              }
+            }}
+          >
+            🔄 Refresh
+          </Button>
           <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
           <span className="text-sm text-green-600 font-medium">Online</span>
           <Badge variant="outline" className="ml-2">
@@ -1524,6 +1661,23 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
           </Badge>
         </div>
       </div>
+      
+      {/* Debug Info */}
+      <Card className="bg-yellow-50 border-yellow-200">
+        <CardContent className="p-3">
+          <div className="text-sm text-yellow-800">
+            <strong>Debug Info:</strong>
+            <br />
+            User ID: {userId?.slice(0, 8)}...
+            <br />
+            Location: {currentLocation ? `${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}` : 'Not available'}
+            <br />
+            Vehicle Types: {riderProfile.vehicle_types?.join(', ')}
+            <br />
+            Requests Found: {nearbyRideRequests.length}
+          </div>
+        </CardContent>
+      </Card>
       
       {nearbyRideRequests.length === 0 ? (
         <Card>
@@ -1533,41 +1687,75 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
             <p className="text-sm text-muted-foreground mt-1">
               You'll be notified when new requests come in for {riderProfile.vehicle_types?.join(', ')}
             </p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={async () => {
+                if (currentLocation) {
+                  const { data, error } = await DatabaseService.getRideRequestsByStatus('pending');
+                  console.log('Check for requests:', { data, error });
+                  if (data) {
+                    alert(`Found ${data.length} total pending requests in database`);
+                  }
+                }
+              }}
+            >
+              Check Database
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {nearbyRideRequests.map((request) => (
-            <Card key={request.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold">{request.booker_name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {calculateDistance(
-                        currentLocation?.lat || 0,
-                        currentLocation?.lng || 0,
-                        request.pickup_location.lat,
-                        request.pickup_location.lng
-                      ).toFixed(1)} km away
-                    </p>
-                    <Badge variant="outline" className="mt-1">
-                      {request.vehicle_type.name}
-                    </Badge>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600">₹{request.fare}</div>
-                    <Badge className={getSafetyColor(request.selected_route.safetyGrade)}>
-                      {request.selected_route.safetyGrade}
-                    </Badge>
-                    {request.payment_status === 'completed' && (
-                      <Badge variant="default" className="bg-green-100 text-green-800 mt-1">
-                        <CreditCard className="h-3 w-3 mr-1" />
-                        Paid
+          {nearbyRideRequests.map((request) => {
+            // Parse vehicle_type if it's a string
+            let vehicleType = request.vehicle_type;
+            if (typeof vehicleType === 'string') {
+              try {
+                vehicleType = JSON.parse(vehicleType);
+              } catch (e) {
+                console.error('Error parsing vehicle_type in render:', e);
+                vehicleType = { 
+                  id: 'unknown', 
+                  name: 'Unknown Vehicle', 
+                  basefare: 0,
+                  perKmRate: 0,
+                  capacity: 'N/A',
+                  eta: 'N/A'
+                };
+              }
+            }
+            
+            return (
+              <Card key={request.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold">{request.booker_name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {calculateDistance(
+                          currentLocation?.lat || 0,
+                          currentLocation?.lng || 0,
+                          request.pickup_location.lat,
+                          request.pickup_location.lng
+                        ).toFixed(1)} km away
+                      </p>
+                      <Badge variant="outline" className="mt-1">
+                        {vehicleType?.name || 'Unknown Vehicle'}
                       </Badge>
-                    )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-green-600">₹{request.fare}</div>
+                      <Badge className={getSafetyColor(request.selected_route.safetyGrade)}>
+                        {request.selected_route.safetyGrade}
+                      </Badge>
+                      {request.payment_status === 'completed' && (
+                        <Badge variant="default" className="bg-green-100 text-green-800 mt-1">
+                          <CreditCard className="h-3 w-3 mr-1" />
+                          Paid
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
                 
                 <div className="space-y-2 text-sm mb-4">
                   <div className="flex items-start gap-2">
@@ -1616,7 +1804,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
       )}
     </div>
@@ -1827,10 +2015,10 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-green-600" />
                 <span className="text-sm font-medium text-green-800">
-                  Verified as: {userProfile?.name}
+                  Verified as: {userName}
                 </span>
                 <Badge variant="outline" className="text-xs">
-                  {userProfile?.validation?.confidence}% Confidence
+                  DB User ID: {userId?.slice(0, 8)}...
                 </Badge>
               </div>
             </div>
@@ -1854,6 +2042,8 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
                 setIsRiderOnline(false);
                 setAcceptedRide(null);
                 setMatchedRider(null);
+                setUserId(null);
+                setDbUser(null);
               }}
             >
               Switch User Type

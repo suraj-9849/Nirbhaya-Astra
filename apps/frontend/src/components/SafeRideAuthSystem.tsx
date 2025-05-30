@@ -20,7 +20,7 @@ import {
   Car
 } from 'lucide-react';
 
-// Authentication service
+// Enhanced Authentication service with better data persistence
 class AuthService {
   // Check if user is authenticated and validated
   static checkAuthStatus(): { isAuthenticated: boolean, userData: any } {
@@ -32,7 +32,7 @@ class AuthService {
         const validationData = JSON.parse(validation);
         const authUserData = JSON.parse(authData);
         
-        // Check if validation is still valid
+        // Check if validation is still valid (24 hours)
         const expiresAt = new Date(validationData.expires_at);
         if (expiresAt > new Date()) {
           return {
@@ -55,10 +55,10 @@ class AuthService {
     }
   }
 
-  // Store user authentication data
+  // Store user authentication data with better structure
   static storeAuthData(userData: any): void {
     const authData = {
-      id: `user_${Date.now()}`,
+      id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: userData.name,
       phone: userData.phone || '',
       email: userData.email || '',
@@ -66,10 +66,16 @@ class AuthService {
       verificationMethod: userData.method,
       verificationConfidence: userData.confidence,
       registeredAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString()
+      lastLogin: new Date().toISOString(),
+      profileComplete: true
     };
     
     localStorage.setItem('saferide_auth', JSON.stringify(authData));
+    
+    // Also set a session flag
+    sessionStorage.setItem('saferide_session_active', 'true');
+    
+    console.log('Auth data stored successfully:', authData);
   }
 
   // Update last login
@@ -90,6 +96,7 @@ class AuthService {
   static clearAuth(): void {
     localStorage.removeItem('saferide_auth');
     localStorage.removeItem('saferide_validation');
+    sessionStorage.removeItem('saferide_session_active');
     document.cookie = 'saferide_verified=; path=/; max-age=0';
     document.cookie = 'saferide_session=; path=/; max-age=0';
   }
@@ -112,6 +119,11 @@ class AuthService {
       return null;
     }
   }
+
+  // Check if session is active
+  static isSessionActive(): boolean {
+    return sessionStorage.getItem('saferide_session_active') === 'true';
+  }
 }
 
 interface LoginFormData {
@@ -133,13 +145,17 @@ const SafeRideAuthSystem: React.FC = () => {
 
   // Check authentication status on mount
   useEffect(() => {
+    console.log('Checking authentication status...');
+    
     const { isAuthenticated, userData: authUserData } = AuthService.checkAuthStatus();
     
-    if (isAuthenticated) {
+    if (isAuthenticated && AuthService.isSessionActive()) {
+      console.log('User is authenticated:', authUserData);
       setUserData(authUserData);
       setAuthState('authenticated');
       AuthService.updateLastLogin();
     } else {
+      console.log('User is not authenticated');
       setAuthState('login');
     }
   }, []);
@@ -160,6 +176,8 @@ const SafeRideAuthSystem: React.FC = () => {
       return;
     }
 
+    console.log('Login form submitted:', loginForm);
+
     // Store basic user data temporarily
     setUserData(loginForm);
     setAuthState('aadhaar-verification');
@@ -167,6 +185,8 @@ const SafeRideAuthSystem: React.FC = () => {
 
   // Handle Aadhaar validation success
   const handleAadhaarSuccess = (aadhaarData: any) => {
+    console.log('Aadhaar validation successful:', aadhaarData);
+    
     const completeUserData = {
       ...loginForm,
       ...aadhaarData
@@ -176,6 +196,8 @@ const SafeRideAuthSystem: React.FC = () => {
     AuthService.storeAuthData(completeUserData);
     setUserData(completeUserData);
     setAuthState('authenticated');
+    
+    console.log('User authentication completed:', completeUserData);
   };
 
   // Handle Aadhaar validation failure
@@ -188,6 +210,7 @@ const SafeRideAuthSystem: React.FC = () => {
 
   // Handle logout
   const handleLogout = () => {
+    console.log('Logging out user...');
     AuthService.clearAuth();
     setUserData(null);
     setAuthState('login');
@@ -234,8 +257,7 @@ const SafeRideAuthSystem: React.FC = () => {
               <p className="text-lg font-semibold">Welcome Back</p>
             </CardTitle>
             <p className="text-center text-muted-foreground">
-              Sign in to access women-only safe transportation
-            </p>
+              </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -394,6 +416,10 @@ const SafeRideAuthSystem: React.FC = () => {
               <span className="text-muted-foreground">Last Login:</span>
               <span>{new Date(userData?.lastLogin || Date.now()).toLocaleDateString()}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">User ID:</span>
+              <span className="font-mono text-xs">{userData?.id?.slice(0, 12)}...</span>
+            </div>
           </div>
 
           <div className="pt-4 border-t space-y-2">
@@ -430,7 +456,7 @@ const SafeRideAuthSystem: React.FC = () => {
               
               <div className="flex items-center gap-3">
                 <div className="hidden md:block text-sm text-muted-foreground">
-                  Welcome, {userData?.name}
+                  Welcome, {userData?.name || 'User'}
                 </div>
                 <Button
                   variant="ghost"

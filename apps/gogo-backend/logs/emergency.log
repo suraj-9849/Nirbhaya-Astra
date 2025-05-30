@@ -44,3 +44,7 @@
 2025-05-30 17:28:36,983 INFO: Analyze area request received [in C:\Users\Suraj\Documents\Web Dev\ne\Nirbhaya-Astra\apps\gogo-backend\app\routes\safety_routes.py:193]
 2025-05-30 17:28:36,997 INFO: Analyzing area for location: {'lat': 17.4340684, 'lng': 78.5021299, 'address': 'Secunderabad Railway Station Rd, Railway Officer Colony, Botiguda, Bhoiguda, Hyderabad, Secunderabad, Telangana 500003, India'} [in C:\Users\Suraj\Documents\Web Dev\ne\Nirbhaya-Astra\apps\gogo-backend\app\routes\safety_routes.py:213]
 2025-05-30 17:28:39,862 INFO: Analysis completed successfully [in C:\Users\Suraj\Documents\Web Dev\ne\Nirbhaya-Astra\apps\gogo-backend\app\routes\safety_routes.py:216]
+2025-05-31 03:56:45,190 INFO: Emergency service startup [in C:\Users\Suraj\Documents\Web Dev\ne\Nirbhaya-Astra\apps\gogo-backend\app\__init__.py:30]
+2025-05-31 03:56:45,248 INFO: Database initialized [in C:\Users\Suraj\Documents\Web Dev\ne\Nirbhaya-Astra\apps\gogo-backend\app\__init__.py:89]
+2025-05-31 03:56:50,992 INFO: Emergency service startup [in C:\Users\Suraj\Documents\Web Dev\ne\Nirbhaya-Astra\apps\gogo-backend\app\__init__.py:30]
+2025-05-31 03:56:51,178 INFO: Database initialized [in C:\Users\Suraj\Documents\Web Dev\ne\Nirbhaya-Astra\apps\gogo-backend\app\__init__.py:89]

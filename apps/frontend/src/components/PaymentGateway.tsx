@@ -39,9 +39,9 @@ const PaymentGateway: React.FC<PaymentProps> = ({
   const initiatePayment = () => {
     setIsProcessing(true);
 
-    // Razorpay configuration
+    // Razorpay configuration with updated test key
     const options = {
-      key: 'rzp_live_FBnjPJmPGZ9JHo', // Your Razorpay Live Key
+      key: 'rzp_test_FPJ7nRa2ReTOWp', // Updated test key
       amount: amount * 100, // Amount in paise
       currency: 'INR',
       name: 'SafeRide',
@@ -101,7 +101,7 @@ const PaymentGateway: React.FC<PaymentProps> = ({
       rzp.open();
     } else {
       setIsProcessing(false);
-      onPaymentFailure('Payment gateway not available');
+      onPaymentFailure('Payment gateway not available. Please try again.');
     }
   };
 
@@ -179,7 +179,7 @@ const PaymentGateway: React.FC<PaymentProps> = ({
           <Shield className="h-4 w-4" />
           <AlertDescription>
             <strong>Secure Payment</strong><br />
-            Your payment is protected by 256-bit SSL encryption
+            Your payment is protected by 256-bit SSL encryption powered by Razorpay
           </AlertDescription>
         </Alert>
 
@@ -205,6 +205,17 @@ const PaymentGateway: React.FC<PaymentProps> = ({
         <p className="text-xs text-center text-muted-foreground">
           By proceeding, you agree to SafeRide's terms and conditions
         </p>
+
+        {/* Test Mode Notice */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="text-sm text-yellow-800">
+            <strong>Test Mode:</strong> This is a test payment. Use test card details:
+            <br />
+            <span className="font-mono">4111 1111 1111 1111</span> (Visa)
+            <br />
+            CVV: Any 3 digits | Expiry: Any future date
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
