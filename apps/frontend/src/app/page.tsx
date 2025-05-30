@@ -6,7 +6,7 @@ import SiteFooter from '@/components/site-footer';
 
 export default function Home() {
   return (
-    <div className='max-w-screen flex items-center justify-center flex-col' > 
+    <div className='max-w-screen bg-black text-white flex items-center justify-center flex-col' > 
       <HeroSection />
       <Features />
       <CallToAction />

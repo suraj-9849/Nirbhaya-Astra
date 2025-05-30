@@ -1021,15 +1021,15 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
 
   // Render functions
   const renderUserTypeSelection = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-[90vh] text-black  flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center">Welcome to SafeRide</CardTitle>
           <p className="text-center text-muted-foreground">Choose how you want to use SafeRide</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Your Name</label>
+          <div className="  space-y-2">
+            <label className="text-sm text-black font-medium">Your Name</label>
             <Input
               placeholder="Enter your name"
               value={userName}
@@ -1038,7 +1038,7 @@ const SafeRideCompleteApp: React.FC<SafeRideCompleteAppProps> = ({
           </div>
           
           <div className="space-y-2">
-            <label className="text-sm font-medium">Phone Number</label>
+            <label className="text-sm text-black font-medium">Phone Number</label>
             <Input
               placeholder="Enter your phone number"
               value={userPhone}

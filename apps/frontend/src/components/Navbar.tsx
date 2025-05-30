@@ -34,14 +34,14 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="mb-5">
+    <nav className="bg-white mb-4 text-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Link
                 href={user.isGovtOfficial ? "/dashboard" : "/"}
-                className="text-white font-bold text-xl"
+                className="text-black font-bold text-xl"
               >
                 Nirbhaya-Astra
               </Link>
@@ -54,8 +54,8 @@ export default function Navbar() {
                     href={link.href}
                     className={`${
                       pathname === link.href
-                        ? "bg-indigo-700 text-white"
-                        : "text-white hover:bg-indigo-500"
+                        ? "bg-indigo-700 text-black"
+                        : "text-black hover:bg-indigo-500"
                     } px-3 py-2 rounded-md text-sm font-medium`}
                   >
                     {link.name}
@@ -66,12 +66,12 @@ export default function Navbar() {
           </div>
           <div className="hidden md:block">
             <div className="ml-4 flex items-center md:ml-6">
-              <div className="text-white mr-4">
+              <div className="text-black mr-4">
                 {user.name ? `Welcome, ${user.name}` : `Welcome, ${user.email}`}
               </div>
               <button
                 onClick={logout}
-                className="px-3 py-2 rounded-md text-sm font-medium text-white bg-indigo-700 hover:bg-indigo-800"
+                className="px-3 py-2 rounded-md text-sm font-medium text-black bg-indigo-700 hover:bg-indigo-800"
               >
                 Logout
               </button>
@@ -80,7 +80,7 @@ export default function Navbar() {
           <div className="md:hidden">
             <button
               onClick={toggleMenu}
-              className="bg-indigo-700 inline-flex items-center justify-center p-2 rounded-md text-white hover:text-white hover:bg-indigo-800 focus:outline-none"
+              className="bg-indigo-700 inline-flex items-center justify-center p-2 rounded-md text-black hover:text-black hover:bg-indigo-800 focus:outline-none"
               aria-expanded="false"
             >
               <span className="sr-only">Open main menu</span>
@@ -114,8 +114,8 @@ export default function Navbar() {
                 href={link.href}
                 className={`${
                   pathname === link.href
-                    ? "bg-indigo-700 text-white"
-                    : "text-white hover:bg-indigo-500"
+                    ? "bg-indigo-700 text-black"
+                    : "text-black hover:bg-indigo-500"
                 } block px-3 py-2 rounded-md text-base font-medium`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -127,13 +127,13 @@ export default function Navbar() {
             <div className="flex items-center px-5">
               <div className="flex-shrink-0">
                 <div className="h-10 w-10 rounded-full bg-indigo-800 flex items-center justify-center">
-                  <span className="text-white font-medium">
+                  <span className="text-black font-medium">
                     {user.name ? user.name.charAt(0) : user.email.charAt(0)}
                   </span>
                 </div>
               </div>
               <div className="ml-3">
-                <div className="text-base font-medium leading-none text-white">
+                <div className="text-base font-medium leading-none text-black">
                   {user.name || "User"}
                 </div>
                 <div className="text-sm font-medium leading-none text-indigo-200 mt-1">
@@ -147,7 +147,7 @@ export default function Navbar() {
                   logout();
                   setIsMenuOpen(false);
                 }}
-                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white bg-indigo-700 hover:bg-indigo-800"
+                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-black bg-indigo-700 hover:bg-indigo-800"
               >
                 Logout
               </button>

@@ -441,56 +441,14 @@ const SafeRideAuthSystem: React.FC = () => {
   if (authState === 'authenticated') {
     return (
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Shield className="h-8 w-8 text-green-600" />
-                <h1 className="text-xl font-bold text-gray-900">SafeRide</h1>
-                <Badge variant="default" className="bg-green-100 text-green-800">
-                  <UserCheck className="h-3 w-3 mr-1" />
-                  Verified
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className="hidden md:block text-sm text-muted-foreground">
-                  Welcome, {userData?.name || 'User'}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowProfile(true)}
-                  className="flex items-center gap-2"
-                >
-                  <User className="h-4 w-4" />
-                  <span className="hidden md:inline">Profile</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="flex items-center gap-2"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden md:inline">Logout</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Main App */}
         <SafeRideCompleteApp 
           userProfile={userData}
           onLogout={handleLogout}
         />
 
-        {/* Profile Modal */}
         {showProfile && renderUserProfile()}
 
-        {/* Verification Status Banner */}
         <div className="fixed bottom-4 right-4 z-40">
           <Card className="bg-green-50 border-green-200">
             <CardContent className="p-3">
