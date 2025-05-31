@@ -10,22 +10,49 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(cuid())
-  name            String?
-  email           String    @unique
-  password        String
-  isGovtOfficial  Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  posts           Post[]
+  id             String       @id @default(cuid())
+  name           String?
+  email          String       @unique
+  password       String
+  isGovtOfficial Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  posts          Post[]
+  credit         Int          @default(0)
+  liveFrames     LiveFrame[] // <-- Add this line
+  finalVideos    FinalVideo[] // <-- Add this line
 }
 
 model Post {
-  id          String    @id @default(cuid())
-  title       String
-  content     String
-  authorId    String
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LiveFrame {
+  id        String   @id @default(uuid())
+  userId    String
+  frame     String // base64 string or CDN URL
+  location  String
+  severity  Int
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FinalVideo {
+  id        String   @id @default(uuid())
+  userId    String
+  videoUrl  String
+  location  String
+  severity  Int
+  isVerified Boolean @default(false)
+  verifiedAt DateTime 
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

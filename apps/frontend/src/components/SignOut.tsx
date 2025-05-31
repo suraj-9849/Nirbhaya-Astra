@@ -1,12 +1,13 @@
 "use client";
 import React from "react";
 import { Button } from "./ui/button";
-import { useAuth } from "@clerk/nextjs";
+// Replace with your AuthProvider's useAuth
+import { useAuth } from "../../contexts/AuthContext"; // Adjust path if needed
 
 function SignOut() {
-  const { signOut } = useAuth();
+  const { logout } = useAuth();
   return (
-    <Button variant={"outline"} onClick={() => signOut()}>
+    <Button variant={"outline"} onClick={() => logout()}>
       Sign Out
     </Button>
   );

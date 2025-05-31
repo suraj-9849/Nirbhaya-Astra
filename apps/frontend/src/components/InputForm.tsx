@@ -15,7 +15,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useClerk } from "@clerk/nextjs";
 import { Loader2, LocateIcon } from "lucide-react";
 import axios from "axios";
 import { Slider } from "./ui/slider";
@@ -60,12 +59,10 @@ export function InputForm({
   setText: (resText: string) => void;
   // setText: (resText: string) => void;
 }) {
-  const { user } = useClerk();
-
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      name: user?.fullName || "",
+      name: "",
       phone: "",
       location: { lat: 12.992865850638335, lng: 80.19331437058186 }, // Default to zero coordinates
       occurrenceDuration: "",

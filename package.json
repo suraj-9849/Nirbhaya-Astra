@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "concurrently \"turbo run dev\" \"cd apps && python -m uvicorn backend.main:app\" ",
     "generate": "npx prisma generate --cwd apps/frontend",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

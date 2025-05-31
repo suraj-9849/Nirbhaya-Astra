@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "../../components/ui/input";
 import { ArrowUp, Scale, Triangle, Check, Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useClerk } from "@clerk/nextjs";
+import {useAuth} from ",,/../contexts/AuthContext";
 import Image from "next/image";
 import modelImage from "../../assets/modelLogo.png";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,7 +60,7 @@ function Page() {
     return displayedText;
   }
 
-  const { user } = useClerk();
+  const { user } = useAuth();
   const form = useForm<ChatFormValues>({
     resolver: zodResolver(ChatSchema),
     defaultValues: { message: "" },
@@ -172,7 +172,7 @@ function Page() {
 
                 {message.isUser && user && (
                   <Image
-                    src={user?.imageUrl || ""}
+                    src={  ""}
                     alt="User Avatar"
                     className="w-8 h-8 rounded-full"
                     width={32}
@@ -225,3 +225,5 @@ function Page() {
 }
 
 export default Page;
+
+
